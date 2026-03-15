@@ -144,10 +144,23 @@ class App {
       this._updateProgress(i+1,snaps.length);
     }
 
+    // Walk the game through the opening trie to find book moves
+    const bookWalker = OPENING_BOOK.createWalker();
+    const bookResults = []; // 'book' or null per move
+    for (let i = 0; i < hist.length; i++) {
+      const h = hist[i];
+      const uci = h.from + h.to + (h.move?.promotion || '');
+      bookResults.push(bookWalker.checkMove(uci));
+    }
+
     for(let i=1;i<snaps.length;i++){
       const h=hist[i-1],mW=h.color==='w';
-      // Book move: first 20 plies AND position was in our opening book
-      if(i<=20&&OPENING_BOOK.isBook(snaps[i-1])){this.grades[i-1]='book';this.bookFlags[i-1]=true;continue;}
+
+      // Book move: trie walker confirmed this move is theory
+      if (bookResults[i-1] === 'book') {
+        this.grades[i-1]='book'; this.bookFlags[i-1]=true; continue;
+      }
+
       const prevAdv=mW?evals[i-1]:-evals[i-1];
       const afterAdv=mW?evals[i]:-evals[i];
       const cpLoss=Math.max(0,prevAdv-afterAdv);

@@ -1,103 +1,330 @@
-/* openings.js — ECO opening book for book move detection */
-/* FEN prefixes of well-known opening lines (first 10-15 moves) */
+/* openings.js — Opening book using move sequences (trie)
+ *
+ * How it works:
+ *   We store hundreds of known theory lines as UCI move sequences.
+ *   We replay the game's moves through the trie as we go.
+ *   A move is "Book" if it exists in the trie at the current node.
+ *   This is 100% accurate — only actual theory lines get the Book label.
+ */
+
 const OPENING_BOOK = (() => {
-  // We store known book positions as a Set of FEN strings (position only, no clocks)
-  // Generated from common ECO lines
-  const lines = [
-    // Starting position
-    'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -',
-    // 1.e4
-    'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq -',
-    // 1...e5
-    'rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq -',
+
+  // Each line is a space-separated sequence of UCI moves
+  // These cover the most common ECO lines to ~10-15 moves deep
+  const LINES = [
+    // ── 1.e4 ──────────────────────────────────────────
+    'e2e4',
+
+    // 1...e5 Open Game
+    'e2e4 e7e5',
+    'e2e4 e7e5 g1f3',
+    'e2e4 e7e5 g1f3 b8c6',
+    'e2e4 e7e5 g1f3 b8c6 f1c4',                          // Italian
+    'e2e4 e7e5 g1f3 b8c6 f1c4 g8f6',                     // Two Knights
+    'e2e4 e7e5 g1f3 b8c6 f1c4 f8c5',                     // Italian Bc5
+    'e2e4 e7e5 g1f3 b8c6 f1c4 f8c5 c2c3',
+    'e2e4 e7e5 g1f3 b8c6 f1c4 f8c5 c2c3 g8f6',
+    'e2e4 e7e5 g1f3 b8c6 f1c4 f8c5 c2c3 d7d6',
+    'e2e4 e7e5 g1f3 b8c6 f1c4 f8c5 e1g1',
+    'e2e4 e7e5 g1f3 b8c6 f1c4 f8c5 d2d3',
+    'e2e4 e7e5 g1f3 b8c6 f1b5',                          // Ruy Lopez
+    'e2e4 e7e5 g1f3 b8c6 f1b5 a7a6',                     // Morphy Defense
+    'e2e4 e7e5 g1f3 b8c6 f1b5 a7a6 b5a4',
+    'e2e4 e7e5 g1f3 b8c6 f1b5 a7a6 b5a4 g8f6',
+    'e2e4 e7e5 g1f3 b8c6 f1b5 a7a6 b5a4 g8f6 e1g1',
+    'e2e4 e7e5 g1f3 b8c6 f1b5 a7a6 b5a4 g8f6 e1g1 f8e7',
+    'e2e4 e7e5 g1f3 b8c6 f1b5 a7a6 b5a4 g8f6 e1g1 f8e7 f1e1',
+    'e2e4 e7e5 g1f3 b8c6 f1b5 a7a6 b5a4 g8f6 e1g1 f8e7 f1e1 b7b5',
+    'e2e4 e7e5 g1f3 b8c6 f1b5 a7a6 b5a4 g8f6 e1g1 f8e7 f1e1 b7b5 a4b3',
+    'e2e4 e7e5 g1f3 b8c6 f1b5 f7f5',                     // Schliemann
+    'e2e4 e7e5 g1f3 b8c6 f1b5 g8f6',                     // Berlin
+    'e2e4 e7e5 g1f3 b8c6 f1b5 g8f6 e1g1',
+    'e2e4 e7e5 g1f3 b8c6 f1b5 d7d6',                     // Steinitz
+    'e2e4 e7e5 g1f3 b8c6 d2d4',                          // Scotch
+    'e2e4 e7e5 g1f3 b8c6 d2d4 e5d4',
+    'e2e4 e7e5 g1f3 b8c6 d2d4 e5d4 f3d4',
+    'e2e4 e7e5 g1f3 b8c6 d2d4 e5d4 f3d4 g8f6',
+    'e2e4 e7e5 g1f3 b8c6 d2d4 e5d4 f3d4 f8c5',
+    'e2e4 e7e5 g1f3 b8c6 d2d4 e5d4 f3d4 d8h4',           // Scotch Haxo
+    'e2e4 e7e5 g1f3 b8c6 b1c3',                          // Three Knights
+    'e2e4 e7e5 g1f3 b8c6 b1c3 g8f6',                     // Four Knights
+    'e2e4 e7e5 g1f3 b8c6 b1c3 g8f6 f1b5',                // Spanish Four Knights
+    'e2e4 e7e5 g1f3 g8f6',                               // Petrov
+    'e2e4 e7e5 g1f3 g8f6 f3e5',
+    'e2e4 e7e5 g1f3 g8f6 f3e5 d7d6',
+    'e2e4 e7e5 g1f3 g8f6 f3e5 d7d6 e5f3 f6e4',
+    'e2e4 e7e5 g1f3 g8f6 d2d4',                          // Petrov 3.d4
+    'e2e4 e7e5 f2f4',                                    // King's Gambit
+    'e2e4 e7e5 f2f4 e5f4',
+    'e2e4 e7e5 f2f4 e5f4 g1f3',
+    'e2e4 e7e5 f2f4 e5f4 g1f3 g7g5',
+    'e2e4 e7e5 f2f4 f8c5',                               // King's Gambit Declined
+    'e2e4 e7e5 b1c3',                                    // Vienna
+    'e2e4 e7e5 b1c3 g8f6',
+    'e2e4 e7e5 b1c3 b8c6',
+    'e2e4 e7e5 f1c4',                                    // Bishop's Opening
+    'e2e4 e7e5 f1c4 g8f6',
+    'e2e4 e7e5 f1c4 f8c5',
+
     // 1...c5 Sicilian
-    'rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq -',
+    'e2e4 c7c5',
+    'e2e4 c7c5 g1f3',
+    'e2e4 c7c5 g1f3 d7d6',
+    'e2e4 c7c5 g1f3 d7d6 d2d4',
+    'e2e4 c7c5 g1f3 d7d6 d2d4 c5d4',
+    'e2e4 c7c5 g1f3 d7d6 d2d4 c5d4 f3d4',
+    'e2e4 c7c5 g1f3 d7d6 d2d4 c5d4 f3d4 g8f6',
+    'e2e4 c7c5 g1f3 d7d6 d2d4 c5d4 f3d4 g8f6 b1c3',
+    'e2e4 c7c5 g1f3 d7d6 d2d4 c5d4 f3d4 g8f6 b1c3 a7a6',  // Najdorf
+    'e2e4 c7c5 g1f3 d7d6 d2d4 c5d4 f3d4 g8f6 b1c3 g7g6',  // Dragon
+    'e2e4 c7c5 g1f3 d7d6 d2d4 c5d4 f3d4 g8f6 b1c3 g7g6 c1e3',
+    'e2e4 c7c5 g1f3 d7d6 d2d4 c5d4 f3d4 g8f6 b1c3 g7g6 c1e3 f8g7',
+    'e2e4 c7c5 g1f3 d7d6 d2d4 c5d4 f3d4 g8f6 b1c3 e7e6',  // Scheveningen
+    'e2e4 c7c5 g1f3 d7d6 d2d4 c5d4 f3d4 g8f6 b1c3 b8c6',  // Classical
+    'e2e4 c7c5 g1f3 b8c6',
+    'e2e4 c7c5 g1f3 b8c6 d2d4',
+    'e2e4 c7c5 g1f3 b8c6 d2d4 c5d4 f3d4',
+    'e2e4 c7c5 g1f3 b8c6 d2d4 c5d4 f3d4 g8f6 b1c3',
+    'e2e4 c7c5 g1f3 b8c6 d2d4 c5d4 f3d4 g8f6 b1c3 d7d6',
+    'e2e4 c7c5 g1f3 b8c6 d2d4 c5d4 f3d4 g8f6 b1c3 e7e5',
+    'e2e4 c7c5 g1f3 e7e6',
+    'e2e4 c7c5 g1f3 e7e6 d2d4',
+    'e2e4 c7c5 g1f3 e7e6 d2d4 c5d4 f3d4',
+    'e2e4 c7c5 g1f3 e7e6 d2d4 c5d4 f3d4 a7a6',           // Kan
+    'e2e4 c7c5 g1f3 e7e6 d2d4 c5d4 f3d4 b8c6',
+    'e2e4 c7c5 b1c3',
+    'e2e4 c7c5 b1c3 b8c6',
+    'e2e4 c7c5 b1c3 g7g6',                               // Accelerated Dragon
+    'e2e4 c7c5 c2c3',                                    // Alapin
+    'e2e4 c7c5 c2c3 d7d5',
+    'e2e4 c7c5 c2c3 g8f6',
+    'e2e4 c7c5 d2d4',                                    // Smith-Morra
+    'e2e4 c7c5 f2f4',                                    // Grand Prix Attack
+
     // 1...e6 French
-    'rnbqkbnr/pppp1ppp/4p3/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq -',
+    'e2e4 e7e6',
+    'e2e4 e7e6 d2d4',
+    'e2e4 e7e6 d2d4 d7d5',
+    'e2e4 e7e6 d2d4 d7d5 b1c3',                          // Classical/Winawer
+    'e2e4 e7e6 d2d4 d7d5 b1c3 f8b4',                     // Winawer
+    'e2e4 e7e6 d2d4 d7d5 b1c3 f8b4 e4e5',
+    'e2e4 e7e6 d2d4 d7d5 b1c3 f8b4 e4e5 c7c5',
+    'e2e4 e7e6 d2d4 d7d5 b1c3 g8f6',                     // Classical
+    'e2e4 e7e6 d2d4 d7d5 b1c3 g8f6 c1g5',
+    'e2e4 e7e6 d2d4 d7d5 b1d2',                          // Tarrasch
+    'e2e4 e7e6 d2d4 d7d5 b1d2 g8f6',
+    'e2e4 e7e6 d2d4 d7d5 b1d2 c7c5',
+    'e2e4 e7e6 d2d4 d7d5 e4e5',                          // Advance
+    'e2e4 e7e6 d2d4 d7d5 e4e5 c7c5',
+    'e2e4 e7e6 d2d4 d7d5 e4e5 c7c5 c2c3',
+    'e2e4 e7e6 d2d4 d7d5 e4d5',                          // Exchange
+
     // 1...c6 Caro-Kann
-    'rnbqkbnr/pp1ppppp/2p5/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq -',
+    'e2e4 c7c6',
+    'e2e4 c7c6 d2d4',
+    'e2e4 c7c6 d2d4 d7d5',
+    'e2e4 c7c6 d2d4 d7d5 b1c3',
+    'e2e4 c7c6 d2d4 d7d5 b1c3 d5e4',                     // Classical
+    'e2e4 c7c6 d2d4 d7d5 b1c3 d5e4 c3e4 c8f5',
+    'e2e4 c7c6 d2d4 d7d5 b1c3 d5e4 c3e4 g8f6',
+    'e2e4 c7c6 d2d4 d7d5 e4e5',                          // Advance
+    'e2e4 c7c6 d2d4 d7d5 e4d5',                          // Exchange
+    'e2e4 c7c6 d2d4 d7d5 b1d2',                          // Modern
+    'e2e4 c7c6 d2d4 d7d5 b1d2 d5e4 d2e4 g8f6',
+
     // 1...d5 Scandinavian
-    'rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq -',
+    'e2e4 d7d5',
+    'e2e4 d7d5 e4d5',
+    'e2e4 d7d5 e4d5 d8d5',
+    'e2e4 d7d5 e4d5 d8d5 b1c3',
+    'e2e4 d7d5 e4d5 d8d5 b1c3 d5a5',
+    'e2e4 d7d5 e4d5 d8d5 b1c3 d5d6',
+    'e2e4 d7d5 e4d5 g8f6',                               // Modern Scandinavian
+
     // 1...Nf6 Alekhine
-    'rnbqkb1r/pppppppp/5n2/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq -',
-    // 1.d4
-    'rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq -',
-    // 1.Nf3
-    'rnbqkbnr/pppppppp/8/8/8/5N2/PPPPPPPP/RNBQKB1R b KQkq -',
-    // 1.c4 English
-    'rnbqkbnr/pppppppp/8/8/2P5/8/PP1PPPPP/RNBQKBNR b KQkq -',
-    // 1.g3
-    'rnbqkbnr/pppppppp/8/8/8/6P1/PPPPPP1P/RNBQKBNR b KQkq -',
-    // Italian: 1.e4 e5 2.Nf3 Nc6 3.Bc4
-    'r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq -',
-    // Ruy Lopez: 1.e4 e5 2.Nf3 Nc6 3.Bb5
-    'r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R b KQkq -',
-    // Scotch: 1.e4 e5 2.Nf3 Nc6 3.d4
-    'r1bqkbnr/pppp1ppp/2n5/4p3/3PP3/5N2/PPP2PPP/RNBQKB1R b KQkq -',
-    // King's Gambit: 1.e4 e5 2.f4
-    'rnbqkbnr/pppp1ppp/8/4p3/4PP2/8/PPPP2PP/RNBQKBNR b KQkq -',
-    // Sicilian Najdorf: 1.e4 c5 2.Nf3 d6 3.d4 cxd4 4.Nxd4 Nf6 5.Nc3 a6
-    'rnbqkb1r/1p2pppp/p2p1n2/8/3NP3/2N5/PPP2PPP/R1BQKB1R w KQkq -',
-    // French Defense: 1.e4 e6 2.d4 d5
-    'rnbqkbnr/ppp2ppp/4p3/3p4/3PP3/8/PPP2PPP/RNBQKBNR w KQkq -',
-    // Caro-Kann: 1.e4 c6 2.d4 d5
-    'rnbqkbnr/pp2pppp/2p5/3p4/3PP3/8/PPP2PPP/RNBQKBNR w KQkq -',
-    // Queen's Gambit: 1.d4 d5 2.c4
-    'rnbqkbnr/ppp1pppp/8/3p4/2PP4/8/PP2PPPP/RNBQKBNR b KQkq -',
-    // King's Indian: 1.d4 Nf6 2.c4 g6
-    'rnbqkb1r/pppppp1p/5np1/8/2PP4/8/PP2PPPP/RNBQKBNR w KQkq -',
-    // Nimzo-Indian: 1.d4 Nf6 2.c4 e6 3.Nc3 Bb4
-    'rnbqk2r/pppp1ppp/4pn2/8/1bPP4/2N5/PP2PPPP/R1BQKBNR w KQkq -',
-    // Grünfeld: 1.d4 Nf6 2.c4 g6 3.Nc3 d5
-    'rnbqkb1r/ppp1pp1p/5np1/3p4/2PP4/2N5/PP2PPPP/R1BQKBNR w KQkq -',
-    // Queen's Gambit Declined
-    'rnbqkbnr/ppp2ppp/4p3/3p4/2PP4/8/PP2PPPP/RNBQKBNR w KQkq -',
-    // Slav Defense
-    'rnbqkbnr/pp2pppp/2p5/3p4/2PP4/8/PP2PPPP/RNBQKBNR w KQkq -',
-    // English Opening: 1.c4 e5
-    'rnbqkbnr/pppp1ppp/8/4p3/2P5/8/PP1PPPPP/RNBQKBNR w KQkq -',
-    // Pirc Defense: 1.e4 d6 2.d4 Nf6
-    'rnbqkb1r/ppp1pppp/3p1n2/8/3PP3/8/PPP2PPP/RNBQKBNR w KQkq -',
-    // Dutch Defense: 1.d4 f5
-    'rnbqkbnr/ppppp1pp/8/5p2/3P4/8/PPP1PPPP/RNBQKBNR w KQkq -',
-    // London System: 1.d4 d5 2.Nf3 Nf6 3.Bf4
-    'rnbqkb1r/ppp1pppp/5n2/3p4/3P1B2/5N2/PPP1PPPP/RN1QKB1R b KQkq -',
-    // Reti Opening: 1.Nf3 d5 2.c4
-    'rnbqkbnr/ppp1pppp/8/3p4/2P5/5N2/PP1PPPPP/RNBQKB1R b KQkq -',
-    // Four Knights: 1.e4 e5 2.Nf3 Nc6 3.Nc3 Nf6
-    'r1bqkb1r/pppp1ppp/2n2n2/4p3/4P3/2N2N2/PPPP1PPP/R1BQKB1R w KQkq -',
-    // Petrov: 1.e4 e5 2.Nf3 Nf6
-    'rnbqkb1r/pppp1ppp/5n2/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq -',
-    // Two Knights: 1.e4 e5 2.Nf3 Nc6 3.Bc4 Nf6
-    'r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq -',
-    // Vienna Game: 1.e4 e5 2.Nc3
-    'rnbqkbnr/pppp1ppp/8/4p3/4P3/2N5/PPPP1PPP/R1BQKBNR b KQkq -',
-    // Bishop's Opening: 1.e4 e5 2.Bc4
-    'rnbqkbnr/pppp1ppp/8/4p3/2B1P3/8/PPPP1PPP/RNBQK1NR b KQkq -',
-    // Sicilian Dragon: 1.e4 c5 2.Nf3 d6 3.d4 cxd4 4.Nxd4 Nf6 5.Nc3 g6
-    'rnbqkb1r/pp2pp1p/3p1np1/8/3NP3/2N5/PPP2PPP/R1BQKB1R w KQkq -',
-    // Sicilian Scheveningen
-    'rnbqkb1r/pp3ppp/4pn2/2pp4/3NP3/2N5/PPP2PPP/R1BQKB1R w KQkq -',
-    // Benoni Defense: 1.d4 Nf6 2.c4 c5
-    'rnbqkb1r/pp1ppppp/5n2/2p5/2PP4/8/PP2PPPP/RNBQKBNR w KQkq -',
-    // Catalan Opening: 1.d4 Nf6 2.c4 e6 3.g3
-    'rnbqkb1r/pppp1ppp/4pn2/8/2PP4/6P1/PP2PP1P/RNBQKBNR b KQkq -',
-    // Budapest Gambit: 1.d4 Nf6 2.c4 e5
-    'rnbqkb1r/pppp1ppp/5n2/4p3/2PP4/8/PP2PPPP/RNBQKBNR w KQkq -',
+    'e2e4 g8f6',
+    'e2e4 g8f6 e4e5',
+    'e2e4 g8f6 e4e5 f6d5',
+    'e2e4 g8f6 e4e5 f6d5 d2d4 d7d6',
+
+    // 1...d6 Pirc/Modern
+    'e2e4 d7d6',
+    'e2e4 d7d6 d2d4',
+    'e2e4 d7d6 d2d4 g8f6',
+    'e2e4 d7d6 d2d4 g8f6 b1c3',
+    'e2e4 d7d6 d2d4 g8f6 b1c3 g7g6',                     // Pirc
+    'e2e4 g7g6',                                          // Modern
+    'e2e4 g7g6 d2d4 f8g7',
+
+    // ── 1.d4 ──────────────────────────────────────────
+    'd2d4',
+
+    // 1...d5
+    'd2d4 d7d5',
+    'd2d4 d7d5 c2c4',                                    // Queen's Gambit
+    'd2d4 d7d5 c2c4 e7e6',                               // QGD
+    'd2d4 d7d5 c2c4 e7e6 b1c3',
+    'd2d4 d7d5 c2c4 e7e6 b1c3 g8f6',
+    'd2d4 d7d5 c2c4 e7e6 b1c3 g8f6 c1g5',                // Classical QGD
+    'd2d4 d7d5 c2c4 e7e6 b1c3 f8e7',
+    'd2d4 d7d5 c2c4 e7e6 g1f3',
+    'd2d4 d7d5 c2c4 e7e6 g1f3 g8f6 b1c3',
+    'd2d4 d7d5 c2c4 e7e6 g1f3 g8f6 b1c3 c7c6',           // Semi-Slav
+    'd2d4 d7d5 c2c4 e7e6 g1f3 g8f6 b1c3 f8e7',
+    'd2d4 d7d5 c2c4 e7e6 g1f3 g8f6 b1c3 c7c5',           // Tarrasch QGD
+    'd2d4 d7d5 c2c4 c7c6',                               // Slav
+    'd2d4 d7d5 c2c4 c7c6 g1f3',
+    'd2d4 d7d5 c2c4 c7c6 g1f3 g8f6',
+    'd2d4 d7d5 c2c4 c7c6 g1f3 g8f6 b1c3',
+    'd2d4 d7d5 c2c4 c7c6 b1c3',
+    'd2d4 d7d5 c2c4 c7c6 b1c3 g8f6',
+    'd2d4 d7d5 c2c4 d5c4',                               // QGA
+    'd2d4 d7d5 c2c4 d5c4 g1f3',
+    'd2d4 d7d5 c2c4 d5c4 e2e4',
+    'd2d4 d7d5 g1f3',
+    'd2d4 d7d5 g1f3 g8f6',
+    'd2d4 d7d5 g1f3 g8f6 c1f4',                          // London
+    'd2d4 d7d5 g1f3 g8f6 c1f4 e7e6',
+    'd2d4 d7d5 g1f3 g8f6 c1f4 c7c5',
+    'd2d4 d7d5 g1f3 g8f6 c1g5',                          // Torre
+    'd2d4 d7d5 g1f3 g8f6 e2e3',
+    'd2d4 d7d5 g1f3 c7c6 c1f4',
+
+    // 1...Nf6 Indian Systems
+    'd2d4 g8f6',
+    'd2d4 g8f6 c2c4',
+    'd2d4 g8f6 c2c4 g7g6',                               // King's Indian / Grünfeld
+    'd2d4 g8f6 c2c4 g7g6 b1c3',
+    'd2d4 g8f6 c2c4 g7g6 b1c3 f8g7',
+    'd2d4 g8f6 c2c4 g7g6 b1c3 f8g7 e2e4',                // King's Indian
+    'd2d4 g8f6 c2c4 g7g6 b1c3 f8g7 e2e4 d7d6',
+    'd2d4 g8f6 c2c4 g7g6 b1c3 f8g7 e2e4 d7d6 g1f3',
+    'd2d4 g8f6 c2c4 g7g6 b1c3 f8g7 e2e4 d7d6 g1f3 e8g8',
+    'd2d4 g8f6 c2c4 g7g6 b1c3 d7d5',                     // Grünfeld
+    'd2d4 g8f6 c2c4 g7g6 b1c3 d7d5 c4d5',
+    'd2d4 g8f6 c2c4 g7g6 b1c3 d7d5 c4d5 f6d5',
+    'd2d4 g8f6 c2c4 g7g6 b1c3 d7d5 c4d5 f6d5 e2e4',
+    'd2d4 g8f6 c2c4 e7e6',
+    'd2d4 g8f6 c2c4 e7e6 b1c3',
+    'd2d4 g8f6 c2c4 e7e6 b1c3 f8b4',                     // Nimzo-Indian
+    'd2d4 g8f6 c2c4 e7e6 b1c3 f8b4 e2e3',
+    'd2d4 g8f6 c2c4 e7e6 b1c3 f8b4 d1c2',
+    'd2d4 g8f6 c2c4 e7e6 b1c3 f8b4 a2a3',
+    'd2d4 g8f6 c2c4 e7e6 g1f3',
+    'd2d4 g8f6 c2c4 e7e6 g1f3 d7d5',                     // Queen's Indian-like
+    'd2d4 g8f6 c2c4 e7e6 g1f3 b7b6',                     // Queen's Indian
+    'd2d4 g8f6 c2c4 e7e6 g1f3 b7b6 b1c3',
+    'd2d4 g8f6 c2c4 e7e6 g1f3 b7b6 g2g3',
+    'd2d4 g8f6 c2c4 e7e6 g2g3',                          // Catalan
+    'd2d4 g8f6 c2c4 e7e6 g2g3 d7d5',
+    'd2d4 g8f6 c2c4 e7e6 g2g3 d7d5 g1f3',
+    'd2d4 g8f6 c2c4 c7c5',                               // Benoni
+    'd2d4 g8f6 c2c4 c7c5 d4d5',
+    'd2d4 g8f6 c2c4 c7c5 d4d5 e7e6',
+    'd2d4 g8f6 g1f3',
+    'd2d4 g8f6 g1f3 g7g6',
+    'd2d4 g8f6 g1f3 e7e6',
+    'd2d4 g8f6 g1f3 d7d5',
+
+    // 1...f5 Dutch
+    'd2d4 f7f5',
+    'd2d4 f7f5 g2g3',
+    'd2d4 f7f5 g2g3 g8f6',
+    'd2d4 f7f5 c2c4',
+    'd2d4 f7f5 c2c4 g8f6',
+    'd2d4 f7f5 b1c3',
+
+    // ── 1.c4 English ──────────────────────────────────
+    'c2c4',
+    'c2c4 e7e5',
+    'c2c4 e7e5 b1c3',
+    'c2c4 e7e5 b1c3 g8f6',
+    'c2c4 e7e5 b1c3 f8b4',
+    'c2c4 e7e5 g1f3',
+    'c2c4 c7c5',
+    'c2c4 c7c5 b1c3',
+    'c2c4 c7c5 g1f3',
+    'c2c4 g8f6',
+    'c2c4 g8f6 b1c3',
+    'c2c4 g8f6 g1f3',
+    'c2c4 e7e6',
+    'c2c4 e7e6 b1c3',
+    'c2c4 d7d6',
+    'c2c4 g7g6',
+
+    // ── 1.Nf3 ──────────────────────────────────────────
+    'g1f3',
+    'g1f3 d7d5',
+    'g1f3 d7d5 c2c4',
+    'g1f3 d7d5 g2g3',
+    'g1f3 g8f6',
+    'g1f3 g8f6 c2c4',
+    'g1f3 g8f6 g2g3',
+    'g1f3 c7c5',
+    'g1f3 c7c5 c2c4',
+    'g1f3 e7e6',
+    'g1f3 f7f5',
+
+    // ── 1.d4 d5 2.Nf3 (London etc) ────────────────────
+    'd2d4 d7d5 g1f3 g8f6 c1f4 e7e6 e2e3',
+    'd2d4 d7d5 g1f3 g8f6 c1f4 e7e6 e2e3 f8d6',
+    'd2d4 d7d5 g1f3 g8f6 c1f4 e7e6 e2e3 c7c5',
+
+    // ── 1.g3 / 1.b3 / 1.f4 ────────────────────────────
+    'g2g3',
+    'g2g3 d7d5',
+    'g2g3 g8f6',
+    'b2b3',
+    'b2b3 e7e5',
+    'b2b3 d7d5',
+    'f2f4',
   ];
 
-  const bookSet = new Set(lines);
+  // Build a trie from the move sequences
+  // Each node: { children: Map<uci, node>, isBook: bool }
+  const root = { children: new Map() };
 
+  for (const line of LINES) {
+    const moves = line.trim().split(' ').filter(Boolean);
+    let node = root;
+    for (const uci of moves) {
+      if (!node.children.has(uci)) {
+        node.children.set(uci, { children: new Map() });
+      }
+      node = node.children.get(uci);
+    }
+    node.isTerminal = true;
+  }
+
+  // The book walker — created fresh per game
+  // Call .reset() at the start of a game, then .checkMove(uci) for each move
   return {
-    isBook(fen) {
-      // Compare only the position part (first field of FEN)
-      const pos = fen.split(' ').slice(0, 4).join(' ');
-      return bookSet.has(pos);
-    },
+    createWalker() {
+      let node = root;
+      let inBook = true;
 
-    // Check if a position is within book depth (ply <= 20)
-    isBookPly(ply) {
-      return ply <= 20;
+      return {
+        // Returns 'book' if the move is theory, null otherwise.
+        // Call in order for each move of the game.
+        checkMove(uci) {
+          if (!inBook || !node) return null;
+          const key = uci.toLowerCase();
+          if (node.children.has(key)) {
+            node = node.children.get(key);
+            return 'book';
+          }
+          // Move not in trie — we've left theory
+          inBook = false;
+          node = null;
+          return null;
+        },
+
+        reset() {
+          node = root;
+          inBook = true;
+        }
+      };
     }
   };
+
 })();
