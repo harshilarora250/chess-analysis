@@ -379,38 +379,48 @@ class App {
   /* ═══════════════ MOVE LIST ═══════════════ */
   _renderMoves() {
     const hist = this.history;
+    if (!hist.length) {
+      document.getElementById('movesList').innerHTML =
+        '<div style="color:var(--text3);font-size:12px;padding:8px 0">No moves yet — paste a PGN or play on the board</div>';
+      return;
+    }
+
+    // Icons for each grade
+    const ICON = { brilliant:'!!', best:'✓', excellent:'!', good:'·', inaccuracy:'?!', mistake:'?', blunder:'??' };
+
     let html = '';
-    for (let i = 0; i < hist.length; i+=2) {
-      const num = Math.floor(i/2)+1;
-      const w = hist[i], bk = hist[i+1];
-      const wp = i+1, bp = i+2;
+    for (let i = 0; i < hist.length; i += 2) {
+      const num = Math.floor(i / 2) + 1;
+      const w  = hist[i],     b  = hist[i+1];
+      const wp = i + 1,       bp = i + 2;
       const wg = this.grades[i], bg = this.grades[i+1];
 
-      const moveCell = (h, g, plyIdx, isActive) => {
+      const cell = (h, g, plyIdx) => {
         if (!h) return `<span class="m-cell" data-ply="${plyIdx}"></span>`;
-        const sym = Engine.gradeSymbol(g);
-        const col = Engine.gradeColor(g);
-        const label = g && g !== 'best' && g !== 'good' ? Engine.gradeLabel(g) : '';
-        return `<span class="m-cell${isActive?' active':''}" data-ply="${plyIdx}" title="${g?Engine.gradeLabel(g):''}">
-          <span class="m-san">${h.san}${sym?`<sup style="color:${col};font-size:9px;font-weight:800;margin-left:1px">${sym}</sup>`:''}</span>
-          ${label?`<span class="m-grade-tag" style="color:${col};border-color:${col}22;background:${col}15">${label}</span>`:''}
+        const isActive = this.ply === plyIdx;
+        const col  = Engine.gradeColor(g);
+        const icon = ICON[g] || '';
+        const label = Engine.gradeLabel(g);
+        return `<span class="m-cell${isActive ? ' active' : ''}" data-ply="${plyIdx}" title="${label}">
+          <span class="m-san">${h.san}</span>
+          ${g ? `<span class="m-icon" style="color:${isActive ? '#fff' : col};opacity:${isActive?'0.9':'1'}">${icon}</span>` : ''}
         </span>`;
       };
 
       html += `<div class="move-pair">
         <span class="m-num">${num}.</span>
-        ${moveCell(w, wg, wp, this.ply===wp)}
-        ${moveCell(bk, bg, bp, this.ply===bp)}
+        ${cell(w,  wg, wp)}
+        ${cell(b,  bg, bp)}
       </div>`;
     }
+
     const el = document.getElementById('movesList');
-    el.innerHTML = html || '<div style="color:var(--text3);font-size:12px;padding:6px">No moves yet — paste a PGN or make moves on the board</div>';
+    el.innerHTML = html;
     el.querySelectorAll('.m-cell[data-ply]').forEach(c =>
       c.addEventListener('click', () => this._goTo(+c.dataset.ply))
     );
-    // Scroll active into view
     const active = el.querySelector('.m-cell.active');
-    if (active) active.scrollIntoView({ block:'nearest', behavior:'smooth' });
+    if (active) active.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
 
   /* ═══════════════ ACCURACY ═══════════════ */
