@@ -195,6 +195,7 @@ class App {
     this._renderMoves();
     this._renderAccuracy();
     this._drawGraph();
+    this._updateMoveBanner(this.ply);
     this._analyze();
     this.toast('Analysis complete ✓');
   }
@@ -311,6 +312,7 @@ class App {
     this.ply = this.snaps.length-1;
     this.renderBoard();
     this._renderMoves();
+    this._updateMoveBanner(this.ply);
     this._analyze();
   }
 
@@ -341,8 +343,30 @@ class App {
       ? { from:this.history[ply-1].from, to:this.history[ply-1].to } : null;
     this.renderBoard();
     this._highlightMove(ply);
+    this._updateMoveBanner(ply);
     this._analyze();
     this._drawGraph();
+  }
+
+  _updateMoveBanner(ply) {
+    const banner = document.getElementById('moveBanner');
+    if (!banner) return;
+    if (ply === 0 || !this.history[ply-1]) {
+      banner.style.display = 'none'; return;
+    }
+    const h = this.history[ply-1];
+    const g = this.grades[ply-1];
+    if (!g) { banner.style.display = 'none'; return; }
+    const col = Engine.gradeColor(g);
+    const sym = Engine.gradeSymbol(g);
+    const label = Engine.gradeLabel(g);
+    banner.style.display = 'flex';
+    banner.style.borderColor = col + '44';
+    banner.style.background = col + '12';
+    banner.innerHTML = `
+      <span class="mb-move" style="color:var(--text)">${h.color==='w'?'White':'Black'}: <strong>${h.san}</strong></span>
+      <span class="mb-grade" style="color:${col}">${sym ? sym+' ' : ''}${label}</span>
+    `;
   }
 
   _highlightMove(ply) {
@@ -361,24 +385,32 @@ class App {
       const w = hist[i], bk = hist[i+1];
       const wp = i+1, bp = i+2;
       const wg = this.grades[i], bg = this.grades[i+1];
+
+      const moveCell = (h, g, plyIdx, isActive) => {
+        if (!h) return `<span class="m-cell" data-ply="${plyIdx}"></span>`;
+        const sym = Engine.gradeSymbol(g);
+        const col = Engine.gradeColor(g);
+        const label = g && g !== 'best' && g !== 'good' ? Engine.gradeLabel(g) : '';
+        return `<span class="m-cell${isActive?' active':''}" data-ply="${plyIdx}" title="${g?Engine.gradeLabel(g):''}">
+          <span class="m-san">${h.san}${sym?`<sup style="color:${col};font-size:9px;font-weight:800;margin-left:1px">${sym}</sup>`:''}</span>
+          ${label?`<span class="m-grade-tag" style="color:${col};border-color:${col}22;background:${col}15">${label}</span>`:''}
+        </span>`;
+      };
+
       html += `<div class="move-pair">
         <span class="m-num">${num}.</span>
-        <span class="m-cell${this.ply===wp?' active':''}" data-ply="${wp}">
-          <span>${w?.san||''}</span>
-          ${wg?`<span class="m-dot" style="background:${Engine.gradeColor(wg)}" title="${Engine.gradeLabel(wg)}"></span>`:'<span></span>'}
-        </span>
-        <span class="m-cell${this.ply===bp?' active':''}" data-ply="${bp}">
-          <span>${bk?.san||''}</span>
-          ${bk&&bg?`<span class="m-dot" style="background:${Engine.gradeColor(bg)}" title="${Engine.gradeLabel(bg)}"></span>`:'<span></span>'}
-        </span>
+        ${moveCell(w, wg, wp, this.ply===wp)}
+        ${moveCell(bk, bg, bp, this.ply===bp)}
       </div>`;
     }
     const el = document.getElementById('movesList');
-    el.innerHTML = html || '<div style="color:var(--text3);font-size:12px;padding:6px">No moves yet</div>';
+    el.innerHTML = html || '<div style="color:var(--text3);font-size:12px;padding:6px">No moves yet — paste a PGN or make moves on the board</div>';
     el.querySelectorAll('.m-cell[data-ply]').forEach(c =>
       c.addEventListener('click', () => this._goTo(+c.dataset.ply))
     );
-    el.scrollTop = el.scrollHeight;
+    // Scroll active into view
+    const active = el.querySelector('.m-cell.active');
+    if (active) active.scrollIntoView({ block:'nearest', behavior:'smooth' });
   }
 
   /* ═══════════════ ACCURACY ═══════════════ */
@@ -392,18 +424,26 @@ class App {
 
     const count = (isW) => {
       const counts = {};
-      this.grades.forEach((g,i) => {
+      this.grades.forEach((g, i) => {
         if (!g) return;
-        if ((i%2===0) === isW) counts[g] = (counts[g]||0)+1;
+        const moveIsWhite = (i % 2 === 0);
+        if (moveIsWhite === isW) counts[g] = (counts[g]||0) + 1;
       });
       return counts;
     };
+
     const chips = (obj) => {
       const order = ['brilliant','best','excellent','good','inaccuracy','mistake','blunder'];
-      return order.filter(g=>obj[g]).map(g=>
-        `<span class="grade-chip" style="background:${Engine.gradeColor(g)}">${obj[g]} ${Engine.gradeLabel(g)}</span>`
-      ).join('');
+      return order.filter(g => obj[g]).map(g => {
+        const col = Engine.gradeColor(g);
+        const sym = Engine.gradeSymbol(g);
+        return `<span class="grade-chip" style="background:${col}20;color:${col};border:1px solid ${col}40">
+          <span style="font-weight:800">${obj[g]}</span>
+          <span>${sym ? sym+' ' : ''}${Engine.gradeLabel(g)}</span>
+        </span>`;
+      }).join('');
     };
+
     document.getElementById('wGrades').innerHTML = chips(count(true));
     document.getElementById('bGrades').innerHTML = chips(count(false));
   }

@@ -73,9 +73,25 @@ class Chess {
   inCheck(){return this._inCheck(this.turn);}
   pgn(){return this.history.map((h,i)=>(h.color==='w'?`${Math.ceil((i+1)/2)}. `:'')+h.san).join(' ').trim();}
   loadPgn(pgn){
-    const s=pgn.replace(/\[.*?\]\s*/gs,'').replace(/\s*(1-0|0-1|1\/2-1\/2|\*)\s*$/,'').trim();
-    const tokens=s.split(/\s+/).filter(t=>t&&!/^\d+\.+$/.test(t));
-    this.reset();for(const t of tokens)if(!this._parseSAN(t.replace(/[+#?!]/g,'')))return false;return true;
+    // Strip headers
+    let s=pgn.replace(/\[.*?\]\s*/gs,'');
+    // Strip curly-brace comments (Chess.com clock annotations, engine evals, etc.)
+    s=s.replace(/\{[^}]*\}/g,' ');
+    // Strip parenthesized variations
+    s=s.replace(/\([^)]*\)/g,' ');
+    // Strip NAG codes like $1 $14 $138
+    s=s.replace(/\$\d+/g,' ');
+    // Strip result
+    s=s.replace(/\s*(1-0|0-1|1\/2-1\/2|\*)\s*$/,'').trim();
+    // Tokenize — skip move numbers like "1." "12..." "1..."
+    const tokens=s.split(/\s+/).filter(t=>t&&!/^\d+\.+$/.test(t)&&t.trim()!=='');
+    this.reset();
+    for(const t of tokens){
+      const clean=t.replace(/[+#?!]/g,'');
+      if(!clean)continue;
+      if(!this._parseSAN(clean))return false;
+    }
+    return true;
   }
   _parseSAN(san){
     if(/^O-O-O$|^0-0-0$/.test(san)){const r=this.turn==='w'?7:0;return!!this.move([r,4],[r,2]);}
