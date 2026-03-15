@@ -1,294 +1,287 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>ChessCalc — Free Chess Analysis</title>
-  <meta name="description" content="Free unlimited chess game analysis powered by Stockfish. Move grading, accuracy scores, eval graph. No account needed." />
-  <link rel="stylesheet" href="css/style.css" />
+  <meta name="description" content="Free chess analysis with Stockfish. Move grades, accuracy scores, Chess.com game import. No account needed."/>
+  <link rel="stylesheet" href="css/style.css"/>
 </head>
 <body>
 
-<!-- ════════════════════════════════════════
-     LANDING PAGE
-═════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════
+     LANDING
+══════════════════════════════════════ -->
 <div id="landingPage">
-
   <header class="landing-header">
     <div class="brand">
-      <div class="brand-icon">♟</div>
-      <div class="brand-name">Chess<span>Calc</span></div>
+      <div class="brand-logo">♟</div>
+      <div class="brand-name">Chess<em>Calc</em></div>
     </div>
-    <nav class="landing-nav">
-      <button class="nav-link" id="btnSample">Try Sample Game</button>
-      <button class="nav-cta" id="btnHeroAnalyze" onclick="document.getElementById('pgnInput').focus()">Analyze Free →</button>
+    <nav class="header-nav">
+      <button class="hn-btn" id="btnSample">Load Sample</button>
+      <button class="hn-btn" onclick="window.app?.showAnalysis()">Free Board</button>
+      <button class="hn-cta" onclick="document.getElementById('pgnInput').focus()">Analyse Free →</button>
     </nav>
   </header>
 
   <main class="hero">
     <div class="hero-glow"></div>
+    <div class="badge"><span class="badge-dot"></span>Powered by Stockfish · 100% Free · No Login</div>
 
-    <div class="hero-badge">
-      <span class="hero-badge-dot"></span>
-      Powered by Stockfish · 100% Free · No Account Needed
-    </div>
+    <h1>Analyse any chess game<br/><span class="hl">for free, instantly</span></h1>
+    <p class="hero-sub">Get move grades, accuracy scores, an eval graph and multi-line engine analysis — the features Chess.com locks behind $15/month.</p>
 
-    <h1>
-      Chess analysis<br/>
-      that <span class="hl">actually tells you</span><br/>
-      why you lost
-    </h1>
-
-    <p class="hero-sub">
-      Paste any PGN and get a full game report in seconds — move grades,
-      accuracy scores, eval graph and engine lines. The same analysis
-      Chess.com locks behind a $15/month subscription.
-    </p>
-
-    <!-- Import Box -->
-    <div class="import-box">
+    <div class="import-card">
       <div class="import-tabs">
-        <button class="import-tab active" data-tab="pgn">Paste PGN</button>
-        <button class="import-tab" data-tab="fen">FEN Position</button>
-        <button class="import-tab" data-tab="board">Free Board</button>
+        <button class="i-tab active" data-tab="pgn">Paste PGN</button>
+        <button class="i-tab" data-tab="fen">FEN Position</button>
+        <button class="i-tab" data-tab="chesscom">Chess.com Games</button>
       </div>
 
-      <!-- PGN pane -->
-      <div class="import-pane active" id="pane-pgn">
-        <textarea class="pgn-area" id="pgnInput"
-          placeholder="Paste your PGN here…&#10;&#10;[White &quot;Magnus&quot;]&#10;[Black &quot;Hikaru&quot;]&#10;1. e4 e5 2. Nf3 Nc6 ..."></textarea>
-        <button class="btn-analyze" id="btnAnalyze">
-          Analyze Game →
-        </button>
+      <!-- PGN -->
+      <div class="i-pane active" id="pane-pgn">
+        <div class="field-label">PGN</div>
+        <textarea class="cc-textarea" id="pgnInput" placeholder='[White "Magnus"] [Black "Hikaru"]&#10;1. e4 e5 2. Nf3 Nc6 ...'></textarea>
+        <button class="btn-primary" id="btnAnalyze">Analyse Game →</button>
       </div>
 
-      <!-- FEN pane -->
-      <div class="import-pane" id="pane-fen">
-        <div>
-          <div class="field-label">FEN String</div>
-          <div class="input-row">
-            <input type="text" class="cc-input" id="fenInputLanding"
-              placeholder="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" />
-            <button class="btn-analyze" style="width:auto;padding:11px 20px;font-size:13px" id="fenAnalyzeBtn">Load →</button>
-          </div>
+      <!-- FEN -->
+      <div class="i-pane" id="pane-fen">
+        <div class="field-label">FEN String</div>
+        <div class="input-row">
+          <input class="cc-input" id="fenInputLanding" placeholder="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"/>
+          <button class="btn-sm" id="btnFenLoad">Load →</button>
         </div>
       </div>
 
-      <!-- Free board pane -->
-      <div class="import-pane" id="pane-board">
-        <p style="color:var(--text2);font-size:13px;text-align:center;padding:16px 0">
-          Open the free analysis board and play moves — the engine analyses every position in real time.
+      <!-- Chess.com -->
+      <div class="i-pane" id="pane-chesscom">
+        <div class="field-label">Chess.com Username</div>
+        <div class="input-row">
+          <input class="cc-input" id="ccUsernameInput" placeholder="e.g. hikaru, magnuscarlsen…"/>
+          <button class="btn-sm" id="btnCCSearch">Search →</button>
+        </div>
+        <p style="color:var(--text3);font-size:12px;line-height:1.6">
+          We'll fetch your recent games from Chess.com's public API. Pick any game to analyse it instantly.
         </p>
-        <button class="btn-analyze" onclick="window.app.showAnalysis(); window.app.renderBoard();">
-          Open Analysis Board →
-        </button>
       </div>
+
+      <button class="btn-primary" id="btnFreeBoard" style="background:transparent;border:1px solid var(--border);color:var(--text2);box-shadow:none;font-size:13px;font-family:'Inter',sans-serif;font-weight:600;margin-top:4px">
+        Or open free analysis board
+      </button>
     </div>
 
-    <div class="feature-row">
-      <div class="feature-pill"><span class="pill-dot"></span>Move Grading (Brilliant → Blunder)</div>
-      <div class="feature-pill"><span class="pill-dot"></span>Accuracy Scores</div>
-      <div class="feature-pill"><span class="pill-dot"></span>Eval Graph</div>
-      <div class="feature-pill"><span class="pill-dot"></span>3 Engine Lines</div>
-      <div class="feature-pill"><span class="pill-dot"></span>FEN / PGN Export</div>
+    <div class="feat-row">
+      <div class="feat-chip"><span class="chip-dot"></span>Move Grading</div>
+      <div class="feat-chip"><span class="chip-dot"></span>Accuracy Scores</div>
+      <div class="feat-chip"><span class="chip-dot"></span>Eval Graph</div>
+      <div class="feat-chip"><span class="chip-dot"></span>3 Engine Lines</div>
+      <div class="feat-chip"><span class="chip-dot"></span>Chess.com Import</div>
     </div>
   </main>
 
-  <footer class="stats-strip">
-    <div class="stat-item">
-      <div class="stat-num">∞</div>
-      <div class="stat-label">Games per day</div>
-    </div>
-    <div class="stat-item">
-      <div class="stat-num">SF10</div>
-      <div class="stat-label">Stockfish engine</div>
-    </div>
-    <div class="stat-item">
-      <div class="stat-num">$0</div>
-      <div class="stat-label">Cost forever</div>
-    </div>
-    <div class="stat-item">
-      <div class="stat-num">0</div>
-      <div class="stat-label">Sign-ups required</div>
-    </div>
+  <footer class="stats-row">
+    <div class="stat-item"><div class="stat-n">∞</div><div class="stat-l">Games per day</div></div>
+    <div class="stat-item"><div class="stat-n">SF10</div><div class="stat-l">Engine</div></div>
+    <div class="stat-item"><div class="stat-n">$0</div><div class="stat-l">Cost forever</div></div>
+    <div class="stat-item"><div class="stat-n">0</div><div class="stat-l">Accounts needed</div></div>
   </footer>
-
 </div>
 
 
-<!-- ════════════════════════════════════════
+<!-- ══════════════════════════════════════
      ANALYSIS PAGE
-═════════════════════════════════════════ -->
+══════════════════════════════════════ -->
 <div id="analysisPage">
 
-  <!-- Top bar -->
-  <header class="analysis-topbar">
-    <div class="topbar-brand" id="topbarBrand">
-      <div class="brand-icon" style="width:28px;height:28px;font-size:14px;border-radius:6px">♟</div>
-      Chess<span style="color:var(--blue)">Calc</span>
+  <header class="a-topbar">
+    <div class="brand" id="topBrand" style="cursor:pointer">
+      <div class="brand-logo" style="width:28px;height:28px;font-size:14px;border-radius:7px">♟</div>
+      <div class="brand-name" style="font-size:16px">Chess<em>Calc</em></div>
     </div>
-    <div class="topbar-divider"></div>
-    <div class="game-meta">
-      <div class="game-players" id="gamePlayers">Analysis Board</div>
-      <div class="engine-badge">
-        <div class="engine-dot loading" id="engineDot"></div>
-        <span id="engineTxt">Loading engine…</span>
-      </div>
+    <div class="divider"></div>
+    <div class="game-title" id="gameTitle">Analysis Board</div>
+    <div class="engine-pill">
+      <div class="e-dot loading" id="eDot"></div>
+      <span id="eTxt">Loading…</span>
     </div>
-    <div class="topbar-actions">
-      <button class="tb-btn" id="btnBack">← Back</button>
+    <div class="tb-actions">
+      <button class="tb-btn" id="btnOpenGames">♟ Chess.com Games</button>
       <button class="tb-btn" id="btnCopyPgn">Copy PGN</button>
+      <button class="tb-btn" id="btnBack">← Back</button>
     </div>
   </header>
 
-  <div class="analysis-layout">
+  <div class="a-layout">
 
-    <!-- ═══ LEFT PANEL ═══ -->
-    <aside class="panel-left">
-
-      <!-- Eval -->
+    <!-- LEFT -->
+    <aside class="p-left">
       <div class="eval-block">
         <div class="eval-top">
           <div class="eval-num" id="evalNum">+0.00</div>
           <div class="eval-meta">
-            <div>Depth <strong id="depthStat">—</strong></div>
-            <div>Turn <strong id="turnStat">White</strong></div>
-            <div id="statusStat" style="color:var(--blue-l);font-weight:600"></div>
+            Depth <strong id="evalDepth">—</strong><br>
+            Turn <strong id="evalTurn">White</strong><br>
+            <span id="evalStatus" style="color:var(--b3)"></span>
           </div>
         </div>
-        <div class="eval-bar-wrap">
+        <div class="eval-bar-track">
           <div class="eval-bar-fill" id="evalBarFill" style="width:50%"></div>
         </div>
-        <div style="font-size:10px;color:var(--text3);margin-top:6px;display:flex;justify-content:space-between">
+        <div class="eval-footer">
           <span>White</span>
-          <span>Best: <span id="bestMoveVal" style="color:var(--blue-l);font-family:'JetBrains Mono',monospace">—</span></span>
+          <span>Best: <span id="bestMove" style="font-family:'JetBrains Mono',monospace;color:var(--b3)">—</span></span>
           <span>Black</span>
         </div>
       </div>
 
-      <!-- Engine lines -->
-      <div class="lines-section">
-        <div class="lines-head">
-          <span>Engine Lines</span>
-          <span style="font-family:'JetBrains Mono',monospace;color:var(--blue-l)" id="engineTxtSmall"></span>
-        </div>
-        <div id="engineLines">
-          <div style="color:var(--text3);font-size:12px;padding:4px">Loading engine…</div>
-        </div>
+      <div class="lines-wrap">
+        <div class="sec-head"><span>Engine Lines</span></div>
+        <div id="engineLines"><div style="color:var(--text3);font-size:12px;padding:4px">Loading…</div></div>
       </div>
 
-      <!-- Depth -->
       <div class="depth-ctrl">
         <div class="depth-row">
-          <span class="depth-label">Analysis Depth</span>
+          <span class="depth-label">Depth</span>
           <span class="depth-val" id="depthVal">16</span>
         </div>
-        <input type="range" id="depthSlider" min="6" max="22" value="16" />
+        <input type="range" id="depthSlider" min="6" max="22" value="16"/>
       </div>
 
-      <!-- Board controls -->
-      <div class="board-controls">
-        <div class="ctrl-row">
-          <button class="ctrl-btn" id="btnFlip">⇅ Flip</button>
-          <button class="ctrl-btn" id="btnReset">↺ Reset</button>
+      <div class="board-ctls">
+        <div class="ctl-row">
+          <button class="ctl-btn" id="btnFlip">⇅ Flip</button>
+          <button class="ctl-btn" id="btnReset">↺ Reset</button>
         </div>
-        <div class="ctrl-row">
-          <button class="ctrl-btn" id="btnLoadFen">Load FEN</button>
-          <button class="ctrl-btn" id="btnCopyFen">Copy FEN</button>
+        <div class="ctl-row">
+          <button class="ctl-btn" id="btnLoadFen">Load FEN</button>
+          <button class="ctl-btn" id="btnCopyFen">Copy FEN</button>
         </div>
       </div>
-
     </aside>
 
-    <!-- ═══ BOARD CENTER ═══ -->
+    <!-- BOARD -->
     <section class="board-center">
-
-      <div class="board-wrap">
+      <div class="board-outer">
         <div class="rank-labels" id="rankLabels">
           <div>8</div><div>7</div><div>6</div><div>5</div>
           <div>4</div><div>3</div><div>2</div><div>1</div>
         </div>
-        <div style="display:flex;flex-direction:column;gap:0">
+        <div class="board-col">
           <div id="chessboard" class="chessboard"></div>
-          <div class="file-labels-wrap" id="fileLabels">
+          <div class="file-labels" id="fileLabels">
             <div>a</div><div>b</div><div>c</div><div>d</div>
             <div>e</div><div>f</div><div>g</div><div>h</div>
           </div>
         </div>
       </div>
 
-      <!-- Nav controls -->
       <div class="nav-controls">
         <button class="nav-btn" id="navFirst" title="Start">⏮</button>
-        <button class="nav-btn" id="navPrev"  title="Previous">◀</button>
-        <button class="nav-btn play-btn" id="navPlay" title="Auto-play">▶</button>
-        <button class="nav-btn" id="navNext"  title="Next">▶</button>
+        <button class="nav-btn" id="navPrev"  title="Back">◀</button>
+        <button class="nav-btn" id="navPlay"  title="Auto-play">▶</button>
+        <button class="nav-btn" id="navNext"  title="Forward">▶</button>
         <button class="nav-btn" id="navLast"  title="End">⏭</button>
       </div>
 
-      <!-- FEN row -->
       <div class="fen-row">
-        <input type="text" class="fen-input" id="fenInput"
-          placeholder="FEN — paste to set position or edit" />
-        <button class="fen-btn" id="btnLoadFen2" onclick="window.app._loadFen()">Load</button>
-        <button class="fen-btn" id="btnCopyFen2" onclick="navigator.clipboard.writeText(document.getElementById('fenInput').value).then(()=>window.app.toast('FEN copied'))">Copy</button>
+        <input class="fen-input" id="fenInput" placeholder="FEN — paste to load position"/>
+        <button class="fen-btn" onclick="window.app._loadFen()">Load</button>
+        <button class="fen-btn" onclick="navigator.clipboard.writeText(document.getElementById('fenInput').value).then(()=>window.app.toast('FEN copied'))">Copy</button>
       </div>
-
     </section>
 
-    <!-- ═══ RIGHT PANEL ═══ -->
-    <aside class="panel-right">
-
-      <!-- Accuracy cards -->
-      <div class="acc-block">
+    <!-- RIGHT -->
+    <aside class="p-right">
+      <div class="acc-row">
         <div class="acc-card">
-          <div class="acc-color white">▲ White</div>
-          <div class="acc-pct loading" id="whiteAcc">—</div>
-          <div class="acc-grades" id="whiteGrades"></div>
+          <div class="acc-who w">▲ White</div>
+          <div class="acc-pct pending" id="whiteAcc">—</div>
+          <div class="acc-chips" id="wGrades"></div>
         </div>
         <div class="acc-card">
-          <div class="acc-color black">▼ Black</div>
-          <div class="acc-pct loading" id="blackAcc">—</div>
-          <div class="acc-grades" id="blackGrades"></div>
+          <div class="acc-who b">▼ Black</div>
+          <div class="acc-pct pending" id="blackAcc">—</div>
+          <div class="acc-chips" id="bGrades"></div>
         </div>
       </div>
 
-      <!-- Move list -->
-      <div class="moves-section">
-        <div class="moves-header">
-          <span class="moves-title">Moves</span>
-          <button class="copy-pgn-btn">Copy PGN</button>
-        </div>
-        <div id="movesList">
-          <div style="color:var(--text3);font-size:12px;padding:4px">No moves yet</div>
+      <div class="moves-scroll">
+        <div class="moves-inner">
+          <div class="moves-hdr">
+            <span class="moves-title">Moves</span>
+            <button class="copy-pgn" id="copyPgnBtn" onclick="window.app._copyPgn()">Copy PGN</button>
+          </div>
+          <div id="movesList"><div style="color:var(--text3);font-size:12px;padding:4px">No moves yet</div></div>
         </div>
       </div>
 
-      <!-- Eval graph -->
-      <div class="graph-section">
-        <div class="graph-title">Evaluation Graph</div>
+      <div class="graph-wrap">
+        <div class="graph-title">Evaluation Graph — click to jump</div>
         <canvas id="evalGraph"></canvas>
       </div>
-
     </aside>
   </div>
 </div>
 
 
-<!-- ═══ PROGRESS OVERLAY ═══ -->
+<!-- ══════════════════════════════════════
+     CHESS.COM GAMES PANEL
+══════════════════════════════════════ -->
+<div id="gamesPanel">
+  <div class="gp-header">
+    <div class="gp-title">♟ Chess.com Games</div>
+    <button class="gp-close" id="gpClose">✕</button>
+  </div>
+
+  <div class="gp-search">
+    <div class="field-label" style="margin-bottom:8px">Enter Chess.com Username</div>
+    <div class="gp-search-row">
+      <input class="gp-input" id="gpInput" placeholder="e.g. hikaru, magnuscarlsen…"/>
+      <button class="gp-search-btn" id="gpSearchBtn">Search</button>
+    </div>
+  </div>
+
+  <div class="gp-player-card" id="gpPlayerCard">
+    <div class="gp-avatar">♟</div>
+    <div class="gp-player-info">
+      <div class="gp-player-name" id="gpPlayerName">—</div>
+      <div class="gp-player-stats" id="gpPlayerSub">—</div>
+      <div class="gp-player-ratings" id="gpRatings"></div>
+    </div>
+  </div>
+
+  <div class="gp-filters">
+    <button class="gp-filter active" data-filter="all">All</button>
+    <button class="gp-filter" data-filter="bullet">⚡ Bullet</button>
+    <button class="gp-filter" data-filter="blitz">🔥 Blitz</button>
+    <button class="gp-filter" data-filter="rapid">⏱ Rapid</button>
+    <button class="gp-filter" data-filter="daily">📅 Daily</button>
+  </div>
+
+  <div class="gp-games-list" id="gpGamesList">
+    <div class="gp-empty">
+      <div class="gp-empty-icon">♟</div>
+      Search a Chess.com username to see their recent games
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════
+     OVERLAYS
+══════════════════════════════════════ -->
 <div id="progressOverlay">
   <div class="prog-box">
     <div class="prog-icon">♟</div>
     <div class="prog-title">Analysing your game…</div>
-    <div class="prog-sub">Stockfish is evaluating every position.<br/>This takes 30–60 seconds.</div>
-    <div class="prog-bar-wrap">
-      <div class="prog-bar" id="progBar"></div>
-    </div>
+    <div class="prog-sub">Stockfish is evaluating every position.<br/>This takes about 30–60 seconds.</div>
+    <div class="prog-bar-bg"><div class="prog-bar" id="progBar"></div></div>
     <div class="prog-stat" id="progStat">0 / 0 positions</div>
   </div>
 </div>
 
-<!-- ═══ PROMOTION DIALOG ═══ -->
 <div id="promoOverlay">
   <div class="promo-box">
     <div class="promo-title">Choose Promotion</div>
@@ -298,6 +291,25 @@
 
 <script src="js/chess.js"></script>
 <script src="js/engine.js"></script>
+<script src="js/chesscom.js"></script>
 <script src="js/app.js"></script>
+<script>
+  // Landing Chess.com search also opens panel
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('btnCCSearch').onclick = () => {
+      const u = document.getElementById('ccUsernameInput').value.trim();
+      if (!u) return;
+      window.app.showAnalysis();
+      setTimeout(() => {
+        document.getElementById('gpInput').value = u;
+        window.app._openGamesPanel();
+        window.app._searchPlayer();
+      }, 100);
+    };
+    document.getElementById('ccUsernameInput').addEventListener('keydown', e => {
+      if (e.key === 'Enter') document.getElementById('btnCCSearch').click();
+    });
+  });
+</script>
 </body>
 </html>
