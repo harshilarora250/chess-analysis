@@ -163,12 +163,13 @@ class Engine {
   }
 
   // Grade a move from cp loss (always positive = mover lost advantage)
+  // Thresholds account for Stockfish depth-14 noise (~10cp variance)
   static gradeMove(cpLoss) {
-    if (cpLoss <  5)  return 'best';
-    if (cpLoss < 15)  return 'excellent';
-    if (cpLoss < 30)  return 'good';
-    if (cpLoss < 70)  return 'inaccuracy';
-    if (cpLoss < 160) return 'mistake';
+    if (cpLoss <  10) return 'best';
+    if (cpLoss <  25) return 'excellent';
+    if (cpLoss <  50) return 'good';
+    if (cpLoss < 100) return 'inaccuracy';
+    if (cpLoss < 200) return 'mistake';
     return 'blunder';
   }
 

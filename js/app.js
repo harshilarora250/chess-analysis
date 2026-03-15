@@ -161,32 +161,37 @@ class App {
     this._showProgress(true, snaps.length);
 
     // Evaluate every position
-    const evals = [];
+    // IMPORTANT: Stockfish score.value is ALWAYS from the side-to-move's perspective.
+    // We convert everything to White's absolute POV for consistent grading.
+    const evals = []; // white-pov cp for each snap
     for (let i = 0; i < snaps.length; i++) {
       const info = await this.engine.evaluateFen(snaps[i], 14);
-      const c = new Chess(snaps[i]).turn;
-      // Convert to white POV
-      let wpCp = 0;
+      const sideToMove = new Chess(snaps[i]).turn;
+      let whitePov = 0;
       if (info?.score) {
-        const raw = Engine.whiteCp(info.score);
-        wpCp = c === 'w' ? raw : -raw;
+        const raw = info.score.type === 'mate'
+          ? (info.score.value > 0 ? 30000 : -30000)
+          : info.score.value;
+        // raw is from side-to-move's POV — flip to White's POV
+        whitePov = sideToMove === 'w' ? raw : -raw;
       }
-      evals.push(wpCp);
-      this.evalHist.push(wpCp);
+      evals.push(whitePov);
+      this.evalHist.push(whitePov);
       this._updateProgress(i + 1, snaps.length);
     }
 
-    // Grade moves
+    // Grade each move: cpLoss = how much the mover's advantage dropped
     for (let i = 1; i < snaps.length; i++) {
       const h = hist[i - 1];
-      const moverWhite = h.color === 'w';
-      // From mover's perspective
-      const prevAdv = moverWhite ? evals[i-1] : -evals[i-1];
-      const afterAdv = moverWhite ? evals[i] : -evals[i];
-      const loss = Math.max(0, prevAdv - afterAdv);
-      this.grades[i-1] = Engine.gradeMove(loss);
-      if (moverWhite) this.lossW.push(loss);
-      else this.lossB.push(loss);
+      const moverIsWhite = h.color === 'w';
+      // Convert white-pov evals to mover's-pov
+      const prevMoverAdv = moverIsWhite ? evals[i-1] : -evals[i-1];
+      const afterMoverAdv = moverIsWhite ? evals[i]   : -evals[i];
+      // cpLoss = how much advantage the mover lost (positive = got worse for mover)
+      const cpLoss = Math.max(0, prevMoverAdv - afterMoverAdv);
+      this.grades[i-1] = Engine.gradeMove(cpLoss);
+      if (moverIsWhite) this.lossW.push(cpLoss);
+      else this.lossB.push(cpLoss);
     }
 
     this._hideProgress();
